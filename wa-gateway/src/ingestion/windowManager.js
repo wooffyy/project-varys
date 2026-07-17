@@ -1,14 +1,13 @@
 const redisClient = require('../clients/redisClient');
 
-const WINDOW_TIMEOUT_MS = 10 * 60 * 1000;
-const ACTIVE_WINDOW_KEY = 'active_windows';
+const WINDOW_TIMEOUT_MS = 10 * 60 * 1000; 
+const ACTIVE_WINDOW_KEY = 'active_windows'; 
 
 async function handleWindowActivity(chatId, isReply){
     if (isReply) return;
 
     const metaKey = `window_meta:${chatId}`;
-    const windowData = await redisClient.get(metaKey);
-    const score = await redisClient.zscore(ACTIVE_WINDOW_KEY, metaKey);
+    const score = await redisClient.zScore(ACTIVE_WINDOW_KEY, chatId);
 
     if (score === null) {
         const startTime = Date.now();
@@ -19,7 +18,6 @@ async function handleWindowActivity(chatId, isReply){
                 chatId: chatId
             } 
         );
-
         console.log(`[Window opened] chatId: ${chatId} startTime: ${startTime}`);
     } else {
         console.log(`[Window updated] chatId: ${chatId}`);
@@ -39,7 +37,7 @@ function startWindowTicker(intervalMs = 30000) {
         const cutoff = now - WINDOW_TIMEOUT_MS;
 
         try {
-            const expiredChats = await redisClient.zRange(ACTIVE_WINDOWS_KEY, '-inf', cutoff, { BY: 'SCORE' });
+            const expiredChats = await redisClient.zRange(ACTIVE_WINDOW_KEY, '-inf', cutoff, { BY: 'SCORE' });
 
             if (expiredChats.length > 0) {
                 for (const chatId of expiredChats) {
@@ -50,7 +48,7 @@ function startWindowTicker(intervalMs = 30000) {
                     
                     console.log(`[Window closed] chatId: ${chatId}. Active duration: ${durationMin} min.`);
                     
-                    await redisClient.zRem(ACTIVE_WINDOWS_KEY, chatId);
+                    await redisClient.zRem(ACTIVE_WINDOW_KEY, chatId);
                     await redisClient.del(metaKey);
                 }
             }
