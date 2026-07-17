@@ -1,6 +1,7 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { handleMessage } = require('./messageHandler');
 const qrcode = require('qrcode-terminal');
+const { startWindowTicker } = require('../ingestion/windowManager');
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -31,3 +32,4 @@ async function connectToWhatsApp() {
 }
 
 connectToWhatsApp();
+startWindowTicker();
