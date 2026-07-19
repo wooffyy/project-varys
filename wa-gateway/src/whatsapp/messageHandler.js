@@ -1,3 +1,4 @@
+const redisClient = require('../clients/redisClient');
 const { saveMessage, getReplyChain } = require('../ingestion/replyChain');
 const { handleWindowActivity } = require('../ingestion/windowManager');
 
@@ -21,23 +22,36 @@ async function handleMessage(sock, m) {
         msg.message.extendedTextMessage?.text ||
         '';
 
-    const parentMsgId = msg.message.extendedTextMessage?.contextInfo?.stanzaId ||
-        msg.message.imageMessage?.contextInfo?.stanzaId ||
-        msg.message.videoMessage?.contextInfo?.stanzaId ||
-        msg.message.documentMessage?.contextInfo?.stanzaId ||
+    const parentMsgId = msgContent.extendedTextMessage?.contextInfo?.stanzaId ||
+        msgContent.imageMessage?.contextInfo?.stanzaId ||
+        msgContent.videoMessage?.contextInfo?.stanzaId ||
+        msgContent.documentMessage?.contextInfo?.stanzaId ||
+        msg.message.extendedTextMessage?.contextInfo?.stanzaId ||
         null;
 
     const isReply = !!parentMsgId;
 
+    let mediaType = 'text';
+    if (msg.message.stickerMessage) mediaType = 'sticker';
+    else if (msg.message.documentMessage) mediaType = 'document';
+    else if (msg.message.imageMessage) mediaType = 'image';
+    else if (msg.message.videoMessage) mediaType = 'video';
+    
     const msgData = {
         id: msgId,
         chatId, 
         sender,
         text,
+        mediaType,
         parentMsgId: parentMsgId || null,
         timestamp: Date.now()
     };
 
+    await redisClient.zAdd(`chat:${chatId}`, {
+        score: msgData.timestamp,
+        value: JSON.stringify(msgData)
+    });
+    
     await saveMessage(msgId, msgData);
     console.log(`[Message saved] msgId: ${msgId} chatId: ${chatId} sender: ${sender} text: ${text}`);
 
@@ -48,12 +62,12 @@ async function handleMessage(sock, m) {
 
         if (chain.length > 0) {
             chain.forEach((prevMsg, index) => {
-            console.log(`[Message chain] ${index}. ${prevMsg.sender}: ${prevMsg.text}`);
+                console.log(`[Message chain] ${index}. ${prevMsg.sender}: ${prevMsg.text}`);
             }); 
         } else {
-            console.log('Message Not Found in Redis')
+            console.log('Message Not Found in Redis');
         }        
     }
 }
 
-module.exports = { handleMessage }; 
+module.exports = { handleMessage };
