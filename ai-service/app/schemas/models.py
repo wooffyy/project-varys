@@ -11,7 +11,7 @@ class MessageItem(BaseModel):
 class ClassifyRequest(BaseModel):
     window_id: str
     is_reply_chain: bool
-    message: List[MessageItem]
+    messages: List[MessageItem]
 
 class ClassifyResponse(BaseModel):
     window_id: str
