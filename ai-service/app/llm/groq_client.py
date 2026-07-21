@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq
-from app.core.config import settings
+from core.config import settings
 
 def get_groq_client() -> ChatGroq:
     return ChatGroq(
