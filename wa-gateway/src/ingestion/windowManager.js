@@ -53,6 +53,10 @@ function startWindowTicker(sock, intervalMs = 30000) {
                     const durationMin = ((now - parseInt(meta.startTime || now)) / 60000).toFixed(1);
                     
                     console.log(`[Window closed] chatId: ${chatId}. Active duration: ${durationMin} min.`);
+
+                    await redisClient.zRem(ACTIVE_WINDOW_KEY, chatId);
+                    await redisClient.del(metaKey);
+                    await redisClient.del(`chat:${chatId}`);
                     
                     if (processWindow(chatHistory)) {
                         console.log(`[Window valid] chatId: ${chatId}. Active duration: ${durationMin} min.`); 
@@ -83,10 +87,6 @@ function startWindowTicker(sock, intervalMs = 30000) {
                     } else {
                         console.log(`[Window filtered] chatId: ${chatId}. Active duration: ${durationMin} min.`); 
                     }
-
-                    await redisClient.zRem(ACTIVE_WINDOW_KEY, chatId);
-                    await redisClient.del(metaKey);
-                    await redisClient.del(`chat:${chatId}`)
                 }
             }
         } catch (err) {
