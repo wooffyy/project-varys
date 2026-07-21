@@ -29,7 +29,7 @@ async function connectToWhatsApp() {
     });
 
     sock.ev.on('messages.upsert', (m) => handleMessage(sock, m));
+    startWindowTicker(sock);
 }
 
 connectToWhatsApp();
-startWindowTicker();
