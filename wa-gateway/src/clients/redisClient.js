@@ -11,7 +11,7 @@ redisClient.on('connect', () => console.log('Redis Client Connected'));
     try {
         await redisClient.connect();
         await redisClient.flushAll();
-    } catch {
+    } catch (err) {
         console.error('Redis Client Error: ', err);
     }
 })();

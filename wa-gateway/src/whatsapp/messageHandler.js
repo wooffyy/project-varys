@@ -2,6 +2,15 @@ const redisClient = require('../clients/redisClient');
 const { saveMessage, getReplyChain } = require('../ingestion/replyChain');
 const { handleWindowActivity } = require('../ingestion/windowManager');
 
+const DENIED_JID_PATTERNS = [
+    'status@broadcast',
+    '@newsletter'
+];
+
+function isDeniedChat(chatId) {
+    return DENIED_JID_PATTERNS.some(pattern => chatId.includes(pattern));
+}
+
 async function handleMessage(sock, m) {
     if (m.type !== 'notify') return;
 
@@ -10,6 +19,7 @@ async function handleMessage(sock, m) {
 
     const msgId = msg.key.id;
     const chatId = msg.key.remoteJid;
+    if (isDeniedChat(chatId)) return;
     const sender = msg.key.participant || msg.key.remoteJid.split('@')[0];
 
     const msgContent = msg.message.documentWithCaptionMessage?.message || msg.message;
