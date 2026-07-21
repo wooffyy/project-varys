@@ -1,8 +1,12 @@
+require('dotenv').config();
 const redisClient = require('../clients/redisClient');
 const { processWindow } = require('./heuristicFilter');
+const { classifyWindow } = require('../clients/aiServiceClient')
+const { sendReminder } = require('./reminderSender');
 
 const WINDOW_TIMEOUT_MS = 30 * 1000; // changed for debug 
 const ACTIVE_WINDOW_KEY = 'active_windows'; 
+const WA_NUMBER = process.env.WA_NUMBER
 
 async function handleWindowActivity(chatId, isReply){
     if (isReply) return;
@@ -30,7 +34,7 @@ async function handleWindowActivity(chatId, isReply){
     });
 }
 
-function startWindowTicker(intervalMs = 30000) { 
+function startWindowTicker(sock, intervalMs = 30000) { 
     console.log(`[Window Ticker] Scheduler active for ${intervalMs / 1000} sec.`);
 
     setInterval(async () => {
@@ -54,20 +58,28 @@ function startWindowTicker(intervalMs = 30000) {
                         console.log(`[Window valid] chatId: ${chatId}. Active duration: ${durationMin} min.`); 
 
                         const aiPayload = {
-                            chatId: chatId,
-                            startTime: meta.startTime,
-                            endTime: now.toString(),
+                            window_id: chatId + "_" + Date.now(), 
+                            is_reply_chain: false,
                             messages: chatHistory.map(msg => ({
-                                msgId: msg.id,
-                                sender: msg.sender,
-                                text: msg.text,
-                                timestamp: msg.timestamp
+                                message_id: msg.id || '',       
+                                sender: msg.sender || '',
+                                text: msg.text || '',
+                                timestamp: new Date(msg.timestamp || Date.now()).toISOString(),
+                                is_quoted_reply_to: msg.parentMsgId || null 
                             }))
                         };
-                        // TODO: send to AI
-
+                        
                         console.log(`[AI Payload Ready]:`, JSON.stringify(aiPayload, null, 2));
+                        try {
+                            const aiResponse = await classifyWindow(aiPayload);
+                            console.log('[AI Response Received]:', JSON.stringify(aiResponse, null, 2));
 
+                            if (aiResponse.is_important) {
+                                await sendReminder(sock, WA_NUMBER, aiResponse);
+                            }
+                        } catch (aiError){
+                            console.error(`[AI Processing Error]:`, aiError.message);
+                        }
                     } else {
                         console.log(`[Window filtered] chatId: ${chatId}. Active duration: ${durationMin} min.`); 
                     }
